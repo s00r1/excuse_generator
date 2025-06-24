@@ -59,6 +59,22 @@ def home():
 @app.route("/generate", methods=["POST"])
 def generate():
     data = request.get_json()
+    if not isinstance(data, dict):
+        return jsonify({"error": "Données manquantes"}), 400
+
+    required_fields = [
+        "format", "intonations", "intonation_affinage", "sujet",
+        "sous_sujet", "sous_sous_sujet", "contexte", "personnes",
+        "relations", "destinataire", "statut_destinataire", "options",
+        "message_recu",
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return (
+            jsonify({"error": f"Champs manquants : {', '.join(missing)}"}),
+            400,
+        )
+
     excuse = generate_excuse(data)
     return jsonify({"excuse": excuse})
 
