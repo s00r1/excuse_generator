@@ -4,7 +4,16 @@ from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
-GORQ_API_KEY = os.environ.get("GORQ_API_KEY")
+def get_api_key():
+    key_file = os.path.join(os.path.dirname(__file__), "gorq_api_key.txt")
+    if os.path.exists(key_file):
+        with open(key_file) as f:
+            key = f.read().strip()
+            if key:
+                return key
+    return os.environ.get("GORQ_API_KEY")
+
+GORQ_API_KEY = get_api_key()
 if not GORQ_API_KEY:
     raise EnvironmentError(
         "La clé d'API n'est pas définie. Merci de définir la variable d'environnement GORQ_API_KEY"
