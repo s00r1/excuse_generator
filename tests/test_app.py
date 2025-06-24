@@ -1,4 +1,5 @@
 from app import build_prompt
+import requests
 
 sample_data = {
     'format': 'sms',
@@ -49,3 +50,13 @@ def test_generate_route(client, monkeypatch):
     resp = client.post('/generate', json=sample_data)
     assert resp.status_code == 200
     assert resp.get_json() == {'excuse': 'excuse générée'}
+
+
+def test_generate_route_network_error(client, monkeypatch):
+    def fake_post(*args, **kwargs):
+        raise requests.RequestException
+
+    monkeypatch.setattr('app.requests.post', fake_post)
+    resp = client.post('/generate', json=sample_data)
+    assert resp.status_code == 200
+    assert resp.get_json() == {'excuse': "Erreur de connexion à l'API"}
