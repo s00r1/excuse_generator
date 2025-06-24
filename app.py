@@ -4,7 +4,11 @@ from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
-GORQ_API_KEY = "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"
+GORQ_API_KEY = os.environ.get("GORQ_API_KEY")
+if not GORQ_API_KEY:
+    raise EnvironmentError(
+        "La clé d'API n'est pas définie. Merci de définir la variable d'environnement GORQ_API_KEY"
+    )
 
 def build_prompt(data):
     prompt = (
