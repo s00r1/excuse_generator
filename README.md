@@ -5,6 +5,12 @@ Déploie sur PythonAnywhere ou en local.
 
 ## Configuration
 
+Installe d'abord les dépendances :
+
+```bash
+pip install -r requirements.txt
+```
+
 Avant de lancer l'application, définis la variable d'environnement `GORQ_API_KEY` avec ta clé Gorq :
 
 ```bash
