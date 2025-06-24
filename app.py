@@ -51,7 +51,10 @@ def generate_excuse(data):
         "temperature": 1.0,
         "max_tokens": 500
     }
-    resp = requests.post(url, headers=headers, json=payload, timeout=30)
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+    except requests.RequestException:
+        return "Erreur de connexion à l'API"
     if resp.status_code == 200:
         try:
             output = resp.json()["choices"][0]["message"]["content"]
