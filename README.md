@@ -11,9 +11,14 @@ Installe d'abord les dépendances :
 pip install -r requirements.txt
 ```
 
-Avant de lancer l'application, définis la variable d'environnement `GORQ_API_KEY` avec ta clé Gorq :
+Avant de lancer l'application, place ta clé Gorq dans un fichier `.env` à la racine :
 
 ```bash
-export GORQ_API_KEY=ma-cle
+echo "GORQ_API_KEY=ma-cle" > .env
+```
+
+Puis lance simplement l'application :
+
+```bash
 python app.py
 ```
