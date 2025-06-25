@@ -2,14 +2,16 @@
 import os
 from flask import Flask, render_template, request, jsonify
 
+# PAS besoin de dotenv là, on veut du brutal zebi
+
 app = Flask(__name__)
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+# Mets la clé EN DUR (oui c’est sale, mais c’est pour debug la mif)
+GROQ_API_KEY = "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"
 if not GROQ_API_KEY:
-    raise EnvironmentError("La clé d'API GROQ n'est pas définie. Mets GROQ_API_KEY dans Render.")
+    raise EnvironmentError("La clé d'API GROQ n'est pas définie. Mets-la en dur ou va fumer un chicha.")
 
-# Choisis ton modèle ici ! (exemple: "llama-3.3-70b-versatile" ou "meta-llama/llama-4-maverick-17b-128e-instruct")
-MODEL_ID = "llama-3.3-70b-versatile"
+MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 def build_prompt(data):
     prompt = (
@@ -49,7 +51,7 @@ def generate_excuse(data):
     prompt = build_prompt(data)
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
-        "Authorization": "Bearer {}".format(GROQ_API_KEY),
+        "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
@@ -58,6 +60,7 @@ def generate_excuse(data):
         "temperature": 1,
         "max_tokens": 500
     }
+    print("DEBUG ENVOI :", headers, payload)  # Optionnel pour debug
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=60)
         resp.raise_for_status()
@@ -92,4 +95,4 @@ def generate():
     return jsonify({"excuse": excuse})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
