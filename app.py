@@ -1,97 +1,72 @@
 # -*- coding: utf-8 -*-
 import os
-import sys
-import requests
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
+from groq import Groq
 
 app = Flask(__name__)
-load_dotenv()
+load_dotenv()  # Charge le .env à la racaille
 
 def get_api_key():
-    return os.environ.get("GORQ_API_KEY")
+    return os.environ.get("GROQ_API_KEY")  # Mets GROQ_API_KEY dans ton .env, pas GORQ, cousin
 
-GORQ_API_KEY = get_api_key()
-print("========= DEBUG INIT =========", file=sys.stderr)
-print("GORQ_API_KEY récupérée ? {}".format("OUI" if GORQ_API_KEY else "NON"), file=sys.stderr)
-print("GORQ_API_KEY VALUE : {}".format(GORQ_API_KEY), file=sys.stderr)
-print("==============================", file=sys.stderr)
-if not GORQ_API_KEY:
-    raise EnvironmentError(
-        "La clé d'API n'est pas définie. Merci de définir la variable d'environnement GORQ_API_KEY"
-    )
+GROQ_API_KEY = get_api_key()
+if not GROQ_API_KEY:
+    raise EnvironmentError("La clé d'API n'est pas définie. Mets GROQ_API_KEY dans .env zebi.")
+
+client = Groq(api_key=GROQ_API_KEY)
 
 def build_prompt(data):
     prompt = (
-        u"Tu es un assistant expert en excuses personnalisées, adapté à tout contexte. "
-        u"Format : {}. "
-        u"Intonations sélectionnées : {}. "
-        u"Affinement intonations : {}. "
-        u"Sujet principal : {}. "
-        u"Sous-sujet : {}. "
-        u"Sous-sous-sujet : {}. "
-        u"Contexte global : {}. "
-        u"Personnes impliquées : {}. "
-        u"Relation(s) : {}. "
-        u"Destinataire : {} (statut : {}). "
-        u"Autres options : {}. "
-        u"Répondre à ce message si précisé : {}. "
-        u"Adapte la longueur et le style à chaque choix, soit créatif, crédible, et drôle si possible."
+        "Tu es un assistant expert en excuses personnalisées, adapté à tout contexte. "
+        "Format : {}. "
+        "Intonations sélectionnées : {}. "
+        "Affinement intonations : {}. "
+        "Sujet principal : {}. "
+        "Sous-sujet : {}. "
+        "Sous-sous-sujet : {}. "
+        "Contexte global : {}. "
+        "Personnes impliquées : {}. "
+        "Relation(s) : {}. "
+        "Destinataire : {} (statut : {}). "
+        "Autres options : {}. "
+        "Répondre à ce message si précisé : {}. "
+        "Adapte la longueur et le style à chaque choix, soit créatif, crédible, et drôle si possible."
     ).format(
-        data['format'],
-        ', '.join(data['intonations']),
-        ', '.join(data['intonation_affinage']) if data['intonation_affinage'] else 'aucun',
-        data['sujet'],
-        data['sous_sujet'],
-        data['sous_sous_sujet'],
-        data['contexte'],
-        ', '.join(data['personnes']) if data['personnes'] else 'aucune',
-        ', '.join(data['relations']) if data['relations'] else 'aucune',
-        data['destinataire'],
-        data['statut_destinataire'],
-        ', '.join(data['options']) if data['options'] else 'aucune',
-        data['message_recu']
+        data.get('format', ''),
+        ', '.join(data.get('intonations', [])),
+        ', '.join(data.get('intonation_affinage', [])) if data.get('intonation_affinage') else 'aucun',
+        data.get('sujet', ''),
+        data.get('sous_sujet', ''),
+        data.get('sous_sous_sujet', ''),
+        data.get('contexte', ''),
+        ', '.join(data.get('personnes', [])) if data.get('personnes') else 'aucune',
+        ', '.join(data.get('relations', [])) if data.get('relations') else 'aucune',
+        data.get('destinataire', ''),
+        data.get('statut_destinataire', ''),
+        ', '.join(data.get('options', [])) if data.get('options') else 'aucune',
+        data.get('message_recu', '')
     )
     return prompt
 
 def generate_excuse(data):
     prompt = build_prompt(data)
-    url = "https://api.gorq.cloud/v1/chat/completions"
-    headers = {
-        "Authorization": "Bearer {}".format(GORQ_API_KEY),
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "mixtral-8x7b",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 1.0,
-        "max_tokens": 500
-    }
-
-    # LOG DEBILE
-    print("========= DEBUG RACAILLE =========", file=sys.stderr)
-    print("API_KEY présent : {}".format("OUI" if GORQ_API_KEY else "NON"), file=sys.stderr)
-    print("Payload envoyé : {}".format(payload), file=sys.stderr)
-    print("Headers envoyés : {}".format(headers), file=sys.stderr)
-    print("==================================", file=sys.stderr)
-
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
-    except requests.RequestException as e:
-        print("Erreur de connexion à l'API : {}".format(str(e)), file=sys.stderr)
-        return u"Erreur de connexion à l'API"
-    print("Status code : {}".format(resp.status_code), file=sys.stderr)
-    print("Réponse texte : {}".format(resp.text), file=sys.stderr)
-    if resp.status_code == 200:
-        try:
-            output = resp.json()["choices"][0]["message"]["content"]
-            print("Réponse finale API : {}".format(output), file=sys.stderr)
-            return output
-        except Exception as e:
-            print("Erreur de parsing JSON : {}".format(str(e)), file=sys.stderr)
-            return u"L'IA a buggé, zebi. Réessaie."
-    else:
-        return u"Erreur Gorq ({}) : {}".format(resp.status_code, resp.text)
+        completion = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",  # change le model si tu veux
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }],
+            temperature=1,
+            max_completion_tokens=500,
+            top_p=1,
+            stream=False  # On prend la réponse complète d'un coup (stream=True ça marche que si tu veux du streaming)
+        )
+        # Version sans stream :
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"Erreur API Groq: {e}"
 
 @app.route("/", methods=["GET"])
 def home():
@@ -100,9 +75,8 @@ def home():
 @app.route("/generate", methods=["POST"])
 def generate():
     data = request.get_json()
-    print("DATA RECUE dans /generate : {}".format(data), file=sys.stderr)
     if not isinstance(data, dict):
-        return jsonify({"error": u"Données manquantes"}), 400
+        return jsonify({"error": "Données manquantes"}), 400
 
     required_fields = [
         "format", "intonations", "intonation_affinage", "sujet",
@@ -112,14 +86,12 @@ def generate():
     ]
     missing = [f for f in required_fields if f not in data]
     if missing:
-        return (
-            jsonify({"error": u"Champs manquants : {}".format(', '.join(missing))}),
-            400,
-        )
+        return jsonify({"error": "Champs manquants : {}".format(', '.join(missing))}), 400
 
     excuse = generate_excuse(data)
     return jsonify({"excuse": excuse})
 
 if __name__ == "__main__":
     app.run()
+
 
