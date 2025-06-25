@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
 from flask import Flask, render_template, request, jsonify
-from dotenv import load_dotenv
-from groq import Groq
 
 app = Flask(__name__)
-load_dotenv()  # Charge le .env à la racaille
 
-def get_api_key():
-    return os.environ.get("GROQ_API_KEY")  # Mets GROQ_API_KEY dans ton .env, pas GORQ, cousin
-
-GROQ_API_KEY = get_api_key()
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    raise EnvironmentError("La clé d'API n'est pas définie. Mets GROQ_API_KEY dans .env zebi.")
+    raise EnvironmentError("La clé d'API GROQ n'est pas définie. Mets GROQ_API_KEY dans Render.")
 
-client = Groq(api_key=GROQ_API_KEY)
+# Choisis ton modèle ici ! (exemple: "llama-3.3-70b-versatile" ou "meta-llama/llama-4-maverick-17b-128e-instruct")
+MODEL_ID = "llama-3.3-70b-versatile"
 
 def build_prompt(data):
     prompt = (
@@ -50,23 +45,25 @@ def build_prompt(data):
     return prompt
 
 def generate_excuse(data):
+    import requests
     prompt = build_prompt(data)
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": "Bearer {}".format(GROQ_API_KEY),
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": MODEL_ID,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 1,
+        "max_tokens": 500
+    }
     try:
-        completion = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",  # change le model si tu veux
-            messages=[{
-                "role": "user",
-                "content": prompt
-            }],
-            temperature=1,
-            max_completion_tokens=500,
-            top_p=1,
-            stream=False  # On prend la réponse complète d'un coup (stream=True ça marche que si tu veux du streaming)
-        )
-        # Version sans stream :
-        return completion.choices[0].message.content
+        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        return f"Erreur API Groq: {e}"
+        return "Erreur Groq : {}".format(e)
 
 @app.route("/", methods=["GET"])
 def home():
@@ -86,12 +83,13 @@ def generate():
     ]
     missing = [f for f in required_fields if f not in data]
     if missing:
-        return jsonify({"error": "Champs manquants : {}".format(', '.join(missing))}), 400
+        return (
+            jsonify({"error": "Champs manquants : {}".format(', '.join(missing))}),
+            400,
+        )
 
     excuse = generate_excuse(data)
     return jsonify({"excuse": excuse})
 
 if __name__ == "__main__":
-    app.run()
-
-
+    app.run(host="0.0.0.0", port=8080, debug=True)
