@@ -1,15 +1,21 @@
+# -*- coding: utf-8 -*-
 import os
+import sys
 import requests
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
 app = Flask(__name__)
-load_dotenv(dotenv_path="/home/s00r1gg/excuse_generator/.env")
+load_dotenv()
 
 def get_api_key():
     return os.environ.get("GORQ_API_KEY")
 
 GORQ_API_KEY = get_api_key()
+print("========= DEBUG INIT =========", file=sys.stderr)
+print("GORQ_API_KEY récupérée ? {}".format("OUI" if GORQ_API_KEY else "NON"), file=sys.stderr)
+print("GORQ_API_KEY VALUE : {}".format(GORQ_API_KEY), file=sys.stderr)
+print("==============================", file=sys.stderr)
 if not GORQ_API_KEY:
     raise EnvironmentError(
         "La clé d'API n'est pas définie. Merci de définir la variable d'environnement GORQ_API_KEY"
@@ -17,20 +23,34 @@ if not GORQ_API_KEY:
 
 def build_prompt(data):
     prompt = (
-        f"Tu es un assistant expert en excuses personnalisées, adapté à tout contexte. "
-        f"Format : {data['format']}. "
-        f"Intonations sélectionnées : {', '.join(data['intonations'])}. "
-        f"Affinement intonations : {', '.join(data['intonation_affinage']) if data['intonation_affinage'] else 'aucun'}. "
-        f"Sujet principal : {data['sujet']}. "
-        f"Sous-sujet : {data['sous_sujet']}. "
-        f"Sous-sous-sujet : {data['sous_sous_sujet']}. "
-        f"Contexte global : {data['contexte']}. "
-        f"Personnes impliquées : {', '.join(data['personnes']) if data['personnes'] else 'aucune'}. "
-        f"Relation(s) : {', '.join(data['relations']) if data['relations'] else 'aucune'}. "
-        f"Destinataire : {data['destinataire']} (statut : {data['statut_destinataire']}). "
-        f"Autres options : {', '.join(data['options']) if data['options'] else 'aucune'}. "
-        f"Répondre à ce message si précisé : {data['message_recu']}. "
-        f"Adapte la longueur et le style à chaque choix, soit créatif, crédible, et drôle si possible."
+        u"Tu es un assistant expert en excuses personnalisées, adapté à tout contexte. "
+        u"Format : {}. "
+        u"Intonations sélectionnées : {}. "
+        u"Affinement intonations : {}. "
+        u"Sujet principal : {}. "
+        u"Sous-sujet : {}. "
+        u"Sous-sous-sujet : {}. "
+        u"Contexte global : {}. "
+        u"Personnes impliquées : {}. "
+        u"Relation(s) : {}. "
+        u"Destinataire : {} (statut : {}). "
+        u"Autres options : {}. "
+        u"Répondre à ce message si précisé : {}. "
+        u"Adapte la longueur et le style à chaque choix, soit créatif, crédible, et drôle si possible."
+    ).format(
+        data['format'],
+        ', '.join(data['intonations']),
+        ', '.join(data['intonation_affinage']) if data['intonation_affinage'] else 'aucun',
+        data['sujet'],
+        data['sous_sujet'],
+        data['sous_sous_sujet'],
+        data['contexte'],
+        ', '.join(data['personnes']) if data['personnes'] else 'aucune',
+        ', '.join(data['relations']) if data['relations'] else 'aucune',
+        data['destinataire'],
+        data['statut_destinataire'],
+        ', '.join(data['options']) if data['options'] else 'aucune',
+        data['message_recu']
     )
     return prompt
 
@@ -38,27 +58,40 @@ def generate_excuse(data):
     prompt = build_prompt(data)
     url = "https://api.gorq.cloud/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {GORQ_API_KEY}",
+        "Authorization": "Bearer {}".format(GORQ_API_KEY),
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "mixtral-8x7b",  # tu peux changer par 'gpt-3.5-turbo', 'zephyr-7b-beta', etc
+        "model": "mixtral-8x7b",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 1.0,
         "max_tokens": 500
     }
+
+    # LOG DEBILE
+    print("========= DEBUG RACAILLE =========", file=sys.stderr)
+    print("API_KEY présent : {}".format("OUI" if GORQ_API_KEY else "NON"), file=sys.stderr)
+    print("Payload envoyé : {}".format(payload), file=sys.stderr)
+    print("Headers envoyés : {}".format(headers), file=sys.stderr)
+    print("==================================", file=sys.stderr)
+
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=30)
-    except requests.RequestException:
-        return "Erreur de connexion à l'API"
+    except requests.RequestException as e:
+        print("Erreur de connexion à l'API : {}".format(str(e)), file=sys.stderr)
+        return u"Erreur de connexion à l'API"
+    print("Status code : {}".format(resp.status_code), file=sys.stderr)
+    print("Réponse texte : {}".format(resp.text), file=sys.stderr)
     if resp.status_code == 200:
         try:
             output = resp.json()["choices"][0]["message"]["content"]
+            print("Réponse finale API : {}".format(output), file=sys.stderr)
             return output
-        except Exception:
-            return "L'IA a buggé, zebi. Réessaie."
+        except Exception as e:
+            print("Erreur de parsing JSON : {}".format(str(e)), file=sys.stderr)
+            return u"L'IA a buggé, zebi. Réessaie."
     else:
-        return f"Erreur Gorq ({resp.status_code}) : {resp.text}"
+        return u"Erreur Gorq ({}) : {}".format(resp.status_code, resp.text)
 
 @app.route("/", methods=["GET"])
 def home():
@@ -67,8 +100,9 @@ def home():
 @app.route("/generate", methods=["POST"])
 def generate():
     data = request.get_json()
+    print("DATA RECUE dans /generate : {}".format(data), file=sys.stderr)
     if not isinstance(data, dict):
-        return jsonify({"error": "Données manquantes"}), 400
+        return jsonify({"error": u"Données manquantes"}), 400
 
     required_fields = [
         "format", "intonations", "intonation_affinage", "sujet",
@@ -79,7 +113,7 @@ def generate():
     missing = [f for f in required_fields if f not in data]
     if missing:
         return (
-            jsonify({"error": f"Champs manquants : {', '.join(missing)}"}),
+            jsonify({"error": u"Champs manquants : {}".format(', '.join(missing))}),
             400,
         )
 
@@ -88,3 +122,4 @@ def generate():
 
 if __name__ == "__main__":
     app.run()
+
