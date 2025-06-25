@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
 app = Flask(__name__)
-load_dotenv()
+load_dotenv(dotenv_path="/home/s00r1gg/excuse_generator/.env")
 
 def get_api_key():
     return os.environ.get("GORQ_API_KEY")
